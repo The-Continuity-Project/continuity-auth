@@ -31,6 +31,13 @@
   ;; Biscuit capability tokens (offline authorisation, v0.5.0)
   org.biscuitsec/biscuit             {:mvn/version "2.3.1"}
 
+  ;; Shared lab substrate (extracted 2026-06-02): biscuit-java wrappers,
+  ;; envelope b64url codec, parameterized keystore loader, length-prefixed
+  ;; canonical-bytes machinery. Used by biscuit-token; will be consumed by
+  ;; continuity-witness when it lands. Source: github.com/danieltanfh95/continuity-crypto
+  io.github.danieltanfh95/continuity-crypto
+  {:git/sha "75877f908c132fa51a3a3e050210504fec68a1d9"}
+
   ;; Observability
   clj-commons/iapetos                {:mvn/version "0.1.13"}
   io.prometheus/simpleclient_hotspot {:mvn/version "0.16.0"}

@@ -37,13 +37,22 @@
   (byte-array (map (fn [i] (unchecked-byte (+ i 64))) (range 32))))
 
 (defn- token-allows?
-  "Verify `token` under root `kp` with set_time(now), returning true iff it
-  authorizes under `policy`. Mirrors a host's offline check; any failure
-  (bad sig / expired / unsatisfied policy) returns false."
+  "Verify `token` under root `kp` with an explicit `time(now)` fact added
+  to the authorizer; return true iff it authorizes under `policy`.
+
+  Mirrors a host's offline check. Production hosts call `.set_time()`,
+  which reads `new Date()` at verify time. The test uses an explicit
+  time fact (same wall-clock semantics, but pinned at one Instant per
+  helper call) to avoid intermittent suite-wide timing flakiness on
+  Apple Silicon under kaocha randomization — the production path is
+  unchanged."
   [^KeyPair kp ^String token ^String policy]
   (try
-    (let [b (Biscuit/from_b64url token (.public_key kp))
-          a (doto (.authorizer b) (.set_time) (.add_policy policy))]
+    (let [b   (Biscuit/from_b64url token (.public_key kp))
+          now (-> (Instant/now) .getEpochSecond Instant/ofEpochSecond .toString)
+          a   (doto (.authorizer b)
+                (.add_fact (str "time(" now ")"))
+                (.add_policy policy))]
       (.authorize a)
       true)
     (catch Exception _ false)))

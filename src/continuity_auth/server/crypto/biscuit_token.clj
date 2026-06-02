@@ -14,76 +14,40 @@
   continuity-auth never learns the host's action vocabulary.
 
   The root signing key is a 32-byte Ed25519 seed held in a keystore file.
-  Keystore handling mirrors `continuity-auth.server.crypto.verifier-box`
-  (precedence: env raw → configured `:key-b64` → keyfile → auto-generate
-  0600 file). The key is SEPARATE from the IP-HMAC and kf-wrap keys
-  (purpose separation): a distinct env var and default path. The *public*
-  half is published (`root-public-key-hex`) for hosts to pin; losing the
-  private keyfile invalidates every outstanding token's verifiability under
-  the old pubkey — back it up alongside the Datalevin store."
+  Keystore handling is now delegated to `continuity-crypto.keystore`, the
+  shared lab substrate. The precedence chain (env raw → configured
+  `:key-b64` → keyfile → auto-generate 0600 file) is unchanged; this ns
+  supplies the continuity-auth-specific env var names and default path.
+  The key is SEPARATE from the IP-HMAC and kf-wrap keys (purpose
+  separation): a distinct env var and default path. The *public* half is
+  published (`root-public-key-hex`) for hosts to pin; losing the private
+  keyfile invalidates every outstanding token's verifiability under the
+  old pubkey — back it up alongside the Datalevin store."
   (:require
-   [clojure.edn :as edn]
-   [clojure.java.io :as io]
-   [continuity-auth.envelope :as envelope])
+   [continuity-crypto.biscuit  :as cc-biscuit]
+   [continuity-crypto.keystore :as cc-keystore])
   (:import
    (com.clevercloud.biscuit.crypto KeyPair)
    (com.clevercloud.biscuit.token Biscuit)
-   (java.nio.file Files)
-   (java.nio.file.attribute PosixFilePermissions)
-   (java.security SecureRandom)
    (java.time Instant)
    (java.time.temporal ChronoUnit)))
 
 (def ^:const seed-bytes 32)             ; Ed25519 seed
 
-;; -- keystore (mirrors verifier-box / ip-hmac) ----------------------------
+;; -- keystore: continuity-auth-specific parameterization -----------------
 
-(defn- blank? [^String s]
-  (or (nil? s) (.isBlank s)))
-
-(defn- env [^String name] (System/getenv name))
-
-(defn- read-keyfile
-  ^bytes [^String path]
-  (let [{:keys [secret-b64]} (edn/read-string (slurp path))
-        bs (envelope/b64url-decode secret-b64)]
-    (when-not (= seed-bytes (alength bs))
-      (throw (ex-info "biscuit root keyfile: wrong length"
-                      {:path path :expected seed-bytes :got (alength bs)})))
-    bs))
-
-(defn- generate-seed ^bytes []
-  (let [bs (byte-array seed-bytes)]
-    (.nextBytes (SecureRandom.) bs)
-    bs))
-
-(defn- restrict-perms! [path]
-  (try
-    (Files/setPosixFilePermissions
-     path (PosixFilePermissions/fromString "rw-------"))
-    (catch UnsupportedOperationException _
-      (binding [*out* *err*]
-        (println (str "WARN: cannot set POSIX perms on " path
-                      " — non-POSIX filesystem"))))))
-
-(defn- write-new-keyfile! ^bytes [^String path]
-  (let [seed (generate-seed)
-        f    (io/file path)]
-    (when-let [parent (.getParentFile f)]
-      (.mkdirs parent))
-    (spit f (pr-str {:secret-b64 (envelope/b64url-encode seed)}))
-    (restrict-perms! (.toPath f))
-    seed))
+(def ^:private keystore-opts
+  {:env-var-name-raw      "CONTINUITY_AUTH_BISCUIT_ROOT_KEY"
+   :env-var-name-key-path "CONTINUITY_AUTH_BISCUIT_ROOT_KEY_PATH"
+   :default-path          "/var/lib/continuity-auth/biscuit-root.key"
+   :seed-bytes            seed-bytes
+   :label                 "biscuit root"})
 
 (defn resolve-key-path
   "Return the configured/default biscuit-root keyfile path. Env
   `CONTINUITY_AUTH_BISCUIT_ROOT_KEY_PATH` overrides the config value."
-  ^String [{:keys [key-path]}]
-  (let [from-env (env "CONTINUITY_AUTH_BISCUIT_ROOT_KEY_PATH")]
-    (cond
-      (not (blank? from-env)) from-env
-      (not (blank? key-path)) key-path
-      :else                   "/var/lib/continuity-auth/biscuit-root.key")))
+  ^String [config]
+  (cc-keystore/resolve-key-path keystore-opts config))
 
 (defn load-or-create-seed!
   "Resolve the 32-byte Ed25519 root seed.
@@ -91,44 +55,24 @@
   `config` is the `:biscuit` stanza from config.edn:
     {:key-path <string>  ; default-path fallback
      :key-b64  <string>} ; direct env-supplied seed (takes precedence)"
-  ^bytes [{:keys [key-b64] :as config}]
-  (let [from-env-key (env "CONTINUITY_AUTH_BISCUIT_ROOT_KEY")]
-    (cond
-      (not (blank? from-env-key))
-      (let [bs (envelope/b64url-decode from-env-key)]
-        (when-not (= seed-bytes (alength bs))
-          (throw (ex-info "CONTINUITY_AUTH_BISCUIT_ROOT_KEY: wrong length"
-                          {:expected seed-bytes :got (alength bs)})))
-        bs)
+  ^bytes [config]
+  (cc-keystore/load-or-create-seed! keystore-opts config))
 
-      (not (blank? key-b64))
-      (let [bs (envelope/b64url-decode key-b64)]
-        (when-not (= seed-bytes (alength bs))
-          (throw (ex-info "biscuit :key-b64: wrong length"
-                          {:expected seed-bytes :got (alength bs)})))
-        bs)
-
-      :else
-      (let [path (resolve-key-path config)]
-        (if (.exists (io/file path))
-          (read-keyfile path)
-          (write-new-keyfile! path))))))
-
-;; -- keypair / pubkey -----------------------------------------------------
+;; -- keypair / pubkey (delegated to substrate) ---------------------------
 
 (defn keypair-from-seed
   "Construct the (immutable, thread-safe) Biscuit root `KeyPair` from a
   32-byte Ed25519 seed."
   ^KeyPair [^bytes seed]
-  (KeyPair. seed))
+  (cc-biscuit/keypair-from-seed seed))
 
 (defn root-public-key-hex
   "Uppercase hex of the root Ed25519 public key — published for hosts to
   pin and verify tokens offline."
   ^String [^KeyPair kp]
-  (.toHex (.public_key kp)))
+  (cc-biscuit/root-public-key-hex kp))
 
-;; -- mint -----------------------------------------------------------------
+;; -- mint (domain: identity / tier / audience facts) ---------------------
 
 ;; Fact string values are interpolated into Datalog. Our values are a UUID,
 ;; a tier keyword name, and an audience the handler has already constrained
