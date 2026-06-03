@@ -191,8 +191,9 @@
 ;; -- public entry points --------------------------------------------------
 
 (defn run-admin
-  "Dispatcher-facing entry. Called by `continuity-auth.client.dispatch`
-  when the user invokes `continuity admin …`.
+  "Dispatcher-facing entry. Called by `continuity-auth.client.plugin-dispatch`
+  when the user invokes `continuity-auth admin …` (direct) or
+  `continuity auth admin …` (via the continuity-cli parent dispatcher).
 
   Argument shape:
     {:subcommand :revoke-key | :config | nil

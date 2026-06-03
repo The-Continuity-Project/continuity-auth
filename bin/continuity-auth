@@ -1,0 +1,14 @@
+#!/usr/bin/env bb
+;; continuity-auth — cryptographic device-continuity client.
+;;
+;; Direct invocation: `continuity-auth <subcommand> [args…]`.
+;; Or, when the continuity-cli parent dispatcher is installed:
+;;   `continuity auth <subcommand> [args…]` — the parent finds this binary
+;;   on PATH (regex `^[a-zA-Z0-9][a-zA-Z0-9_-]*$`, name `continuity-auth`)
+;;   and spawns it with stdio inherited.
+;;
+;; This script delegates to `continuity-auth.client.plugin-dispatch/main`,
+;; which routes to `continuity-auth.client.cli` (auth subcommands) or
+;; `continuity-auth.admin.cli` (admin subcommands).
+(require '[continuity-auth.client.plugin-dispatch :as d])
+(System/exit (apply d/main *command-line-args*))

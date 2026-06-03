@@ -166,7 +166,7 @@ an upstream gate already bounds bootstrap rate.
 CONTINUITY_AUTH_ENDPOINT=https://fl.example.com \
 CONTINUITY_AUTH_ADMIN_KEY_ID=ops-01 \
 CONTINUITY_AUTH_ADMIN_SECRET_FILE=/etc/cauth/admin-ops-01.secret \
-continuity admin revoke-key <b64url-thumbprint>
+continuity auth admin revoke-key <b64url-thumbprint>
 ```
 
 The CLI signs with HMAC-SHA256. The server validates against the keystore at `CONTINUITY_AUTH_ADMIN_HMAC_KEYS_PATH` (a `{:keys [{:id, :secret-b64}]}` EDN file loaded at startup). On success the pubkey's `:pubkey/revoked-at` is set to `now` and subsequent `/verify` returns `E_FORBIDDEN`.
@@ -188,7 +188,7 @@ clojure -M:dev
 CONTINUITY_AUTH_ENDPOINT=https://fl.example.com \
 CONTINUITY_AUTH_ADMIN_KEY_ID=ops-01 \
 CONTINUITY_AUTH_ADMIN_SECRET_FILE=/etc/cauth/admin-ops-01.secret \
-continuity admin config | jq
+continuity auth admin config | jq
 ```
 
 This dumps the aero-resolved config (env vars applied). Sensitive fields (`:prometheus-bearer`, `:host-keys-path`, `:admin-keys-path`) come back as `"<redacted>"`. Use this to verify what the server actually loaded, especially when a redeploy did or didn't pick up an expected change.
@@ -200,7 +200,7 @@ This dumps the aero-resolved config (env vars applied). Sensitive fields (`:prom
 1. Update `resources/config.edn` (or the env var override) in the source repo.
 2. Open a PR, review, merge.
 3. Redeploy. The new pod loads the new config on startup.
-4. Verify with `continuity admin config`.
+4. Verify with `continuity auth admin config`.
 
 The only attributes that change at runtime are stored in the database (trust scores, pubkey revocations, identity tiers) and are mutated via the API.
 

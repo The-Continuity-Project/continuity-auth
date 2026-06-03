@@ -117,8 +117,8 @@ continuity-auth.server.observability.{metrics,logging}
 continuity-auth.server.{config,system,main} composition
 
 continuity-auth.client.{core,crypto,fingerprint,storage,tabs,kf}  cljs client
-continuity-auth.client.{cli,dispatch,json}  bb-compatible client CLI (bin/continuity)
-continuity-auth.admin.cli                   HMAC admin CLI (continuity admin …)
+continuity-auth.client.{cli,plugin-dispatch,json}  bb-compatible client CLI (bin/continuity-auth)
+continuity-auth.admin.cli                          HMAC admin CLI (continuity auth admin …)
 ```
 
 Boundaries:

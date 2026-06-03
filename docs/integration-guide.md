@@ -80,7 +80,7 @@ CONTINUITY_AUTH_ENDPOINT=https://fl.example.com ./scripts/cauth-curl-example.sh
 
 The CLI substrate stores the keypair as `$CONTINUITY_AUTH_HOME/key.pem` (PEM/PKCS8, openssl-compatible) and the identity record as `$CONTINUITY_AUTH_HOME/identity.edn`. The wire bytes are identical to the browser path. See [`docs/crypto-protocol.md`](crypto-protocol.md) and [`docs/non-browser-clients.md`](non-browser-clients.md).
 
-Operator guidance for filesystem-resident keys: `chmod 700 $CONTINUITY_AUTH_HOME`, treat the key like any long-lived API credential, and rotate via `continuity admin revoke-key` + `continuity auth init` if compromise is suspected. The threat-model coverage is in [`docs/threat-model.md`](threat-model.md) T1 (CLI substrate row).
+Operator guidance for filesystem-resident keys: `chmod 700 $CONTINUITY_AUTH_HOME`, treat the key like any long-lived API credential, and rotate via `continuity auth admin revoke-key` + `continuity auth init` if compromise is suspected. The threat-model coverage is in [`docs/threat-model.md`](threat-model.md) T1 (CLI substrate row).
 
 ## What about non-engaging callers?
 

@@ -75,9 +75,11 @@ Pick whichever fits.
    `xxd`, and `printf`. Read this to see the wire shape bytes-for-bytes,
    port the client to another language, or confirm there is nothing
    up the sleeve.
-2. **The unified CLI.** `continuity auth init` / `continuity auth
-   curl` (the bb-based `continuity` binary, installed via `install.sh`
-   or `brew install`). Read this to use it.
+2. **The unified CLI.** `continuity-auth init` / `continuity-auth curl`
+   (the bb-based `continuity-auth` binary; or, with the
+   [continuity-cli](https://github.com/danieltanfh95/continuity-cli)
+   parent dispatcher installed, `continuity auth init` / `continuity
+   auth curl`). Read this to use it.
 
 Both speak the same wire protocol. The shell example is the
 reference. The CLI is the ergonomic surface.
@@ -103,13 +105,13 @@ Python, no Node, no Clojure required.
 
 ## Quick start (ergonomic CLI)
 
+Install via [continuity-cli](https://github.com/danieltanfh95/continuity-cli)
+(the parent dispatcher that knows about the continuity-* plugin family):
+
 ```bash
-# Install (one of):
-curl -fsSL https://raw.githubusercontent.com/danieltanfh95/continuity-auth/main/install.sh | sh
-# or, on macOS (the Homebrew tap will be registered alongside the v0.1.0 tag):
-#   brew tap danieltanfh95/tap && brew install continuity
-# until then, install from the formula path:
-#   brew install --HEAD --build-from-source ./Formula/continuity.rb
+# Install the parent, then the auth plugin.
+curl -fsSL https://raw.githubusercontent.com/danieltanfh95/continuity-cli/main/install.sh | sh
+continuity install --include auth
 
 # Bootstrap an identity.
 continuity auth init
@@ -121,7 +123,18 @@ continuity auth show
 continuity auth curl -X POST -d '{"thing":"value"}' https://app.example.com/api/thing
 ```
 
-The CLI is a babashka script (`bin/continuity`). It uses the same
+Or install the auth plugin standalone (the parent dispatcher is a
+convenience layer, not required):
+
+```bash
+# Direct via bbin — works without continuity-cli installed.
+bbin install https://github.com/danieltanfh95/continuity-auth.git --as continuity-auth
+
+continuity-auth init                     # same as `continuity auth init`
+continuity-auth curl -X POST …           # same as `continuity auth curl …`
+```
+
+The CLI is a babashka script (`bin/continuity-auth`). It uses the same
 `continuity-auth.envelope` namespace as the JVM server, so the bytes it
 produces are guaranteed to match what the server reconstructs.
 
@@ -160,8 +173,8 @@ For shell + CLI clients, the key lives on the filesystem at
   - On servers, store the key in a secrets manager and project it into
     a tmpfs-mounted `$CONTINUITY_AUTH_HOME` at process start. Don't commit it.
   - Rotate via `continuity auth init --rotate` (planned for v1.1). In
-    v0.1 the path is: revoke via `continuity admin revoke-key`, then
-    re-init.
+    v0.1 the path is: revoke via `continuity auth admin revoke-key`,
+    then re-init.
   - Treat key compromise the same way you'd treat any long-lived API
     credential compromise: revoke, rotate, audit.
 
