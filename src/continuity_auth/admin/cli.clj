@@ -205,7 +205,8 @@
   (cond
     (nil? subcommand)
     (do (binding [*out* *err*]
-          (println "usage: continuity admin <subcommand> [ARGS…]")
+          (println "usage: continuity auth admin <subcommand> [ARGS…]")
+          (println "   or: continuity-auth admin <subcommand> [ARGS…]")
           (println "subcommands: revoke-key, config"))
         2)
 

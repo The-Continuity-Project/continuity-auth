@@ -1,14 +1,24 @@
-#!/usr/bin/env bb
-;; continuity-auth — cryptographic device-continuity client.
-;;
-;; Direct invocation: `continuity-auth <subcommand> [args…]`.
-;; Or, when the continuity-cli parent dispatcher is installed:
-;;   `continuity auth <subcommand> [args…]` — the parent finds this binary
-;;   on PATH (regex `^[a-zA-Z0-9][a-zA-Z0-9_-]*$`, name `continuity-auth`)
-;;   and spawns it with stdio inherited.
-;;
-;; This script delegates to `continuity-auth.client.plugin-dispatch/main`,
-;; which routes to `continuity-auth.client.cli` (auth subcommands) or
-;; `continuity-auth.admin.cli` (admin subcommands).
-(require '[continuity-auth.client.plugin-dispatch :as d])
-(System/exit (apply d/main *command-line-args*))
+#!/usr/bin/env bash
+# continuity-auth — cryptographic device-continuity client.
+#
+# Direct invocation: `continuity-auth <subcommand> [args…]`.
+# Or, when the continuity-cli parent dispatcher is installed:
+#   `continuity auth <subcommand> [args…]` — the parent finds this
+#   binary on PATH (regex `^[a-zA-Z0-9][a-zA-Z0-9_-]*$`, name
+#   `continuity-auth`) and spawns it with stdio inherited.
+#
+# Delegates to `continuity-auth.client.plugin-dispatch/-main` via
+# `bb -m`. Resolves the repo root from the script's own location so
+# symlinks (dev or bbin/brew shims) work regardless of cwd.
+set -euo pipefail
+
+SOURCE="${BASH_SOURCE[0]}"
+while [ -L "$SOURCE" ]; do
+  DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+SCRIPT_DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+exec bb --config "${REPO_ROOT}/bb.edn" -m continuity-auth.client.plugin-dispatch "$@"

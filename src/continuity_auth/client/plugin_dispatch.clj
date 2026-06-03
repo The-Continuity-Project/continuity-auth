@@ -92,7 +92,7 @@
 
 (defn main
   "Entry point. Returns an integer exit code; does NOT call System/exit
-  itself (callers — bin/continuity-auth, tests — make that decision)."
+  itself (callers — `-main`, tests — make that decision)."
   [& argv]
   (let [args (vec argv)
         a0   (first args)]
@@ -108,3 +108,9 @@
 
       :else
       (client-cli/run-auth (parse-args args)))))
+
+(defn -main
+  "CLI-side entry resolved by `bb -m continuity-auth.client.plugin-dispatch`.
+  Wraps `main` with `System/exit` so non-zero exit codes propagate."
+  [& argv]
+  (System/exit (apply main argv)))
